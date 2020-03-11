@@ -1,11 +1,11 @@
-import { Component, OnInit, ViewEncapsulation, ChangeDetectionStrategy, ElementRef, ViewChild, Input, Inject } from '@angular/core';
-import { fromEvent, merge, Observable } from 'rxjs';
+import { Component, OnInit, ViewEncapsulation, ChangeDetectionStrategy, ElementRef, ViewChild, Input, Inject, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { fromEvent, merge, Observable, Subscription } from 'rxjs';
 import { tap, pluck, map, distinctUntilChanged, takeUntil, filter } from 'rxjs/internal/operators';
-import { SliderEventObserverConfig } from './wy-slider-typs';
+import { SliderEventObserverConfig, SliderValue } from './wy-slider-typs';
 import { DOCUMENT } from '@angular/common';
 import { sliderEvent, getElementOffset } from './wy-slider-helper';
 import { inArray } from 'src/app/utils/array';
-import { limitNumberInRange } from 'src/app/utils/number';
+import { limitNumberInRange, getPercent } from 'src/app/utils/number';
 
 @Component({
   selector: 'app-wy-slider',
@@ -14,7 +14,7 @@ import { limitNumberInRange } from 'src/app/utils/number';
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WySliderComponent implements OnInit {
+export class WySliderComponent implements OnInit, OnDestroy {
   @Input() wyVertical = false;
   @Input() wyMin = 0;
   @Input() wyMax = 100;
@@ -26,8 +26,16 @@ export class WySliderComponent implements OnInit {
   private dragStart$: Observable<number>;
   private dragMove$: Observable<number>;
   private dragEnd$: Observable<Event>;
+  private dragStart_: Subscription | null;
+  private dragMove_: Subscription | null;
+  private dragEnd_: Subscription | null;
 
-  constructor(@Inject(DOCUMENT) private doc: Document) { }
+  private isDragging = false;
+
+  value: SliderValue = null;
+  offset: SliderValue = null;
+
+  constructor(@Inject(DOCUMENT) private doc: Document, private cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     this.sliderDom = this.wySlider.nativeElement
@@ -80,24 +88,80 @@ export class WySliderComponent implements OnInit {
   }
 
   private subscribeDrag(events: string[] = ['start', 'move', 'end']) {
-    if (inArray(events, 'start') && this.dragStart$) {
-      this.dragStart$.subscribe(this.onDragStart.bind(this));
+    if (inArray(events, 'start') && this.dragStart$ && !this.dragStart_) {
+      this.dragStart_ = this.dragStart$.subscribe(this.onDragStart.bind(this));
     }
-    if (inArray(events, 'move') && this.dragMove$) {
-      this.dragMove$.subscribe(this.onDragMove.bind(this));
+    if (inArray(events, 'move') && this.dragMove$ && !this.dragMove_) {
+      this.dragMove_ = this.dragMove$.subscribe(this.onDragMove.bind(this));
     }
-    if (inArray(events, 'end') && this.dragEnd$) {
-      this.dragEnd$.subscribe(this.onDragEnd.bind(this));
+    if (inArray(events, 'end') && this.dragEnd$ && !this.dragEnd_) {
+      this.dragEnd_ = this.dragEnd$.subscribe(this.onDragEnd.bind(this));
+    }
+  }
+
+  private unSubscribeDrag(events: string[] = ['start', 'move', 'end']) {
+    if (inArray(events, 'start') && this.dragStart_) {
+      this.dragStart_.unsubscribe();
+      this.dragStart_ = null;
+    }
+    if (inArray(events, 'move') && this.dragMove_) {
+      this.dragMove_.unsubscribe();
+      this.dragMove_ = null;
+    }
+    if (inArray(events, 'end') && this.dragEnd_) {
+      this.dragEnd_.unsubscribe();
+      this.dragEnd_ = null;
     }
   }
 
   private onDragStart(value: number) {
-    console.log(value)
+    this.toggleDragMoving(true);
+    this.setValue(value);
   }
 
-  private onDragMove(value: number) {}
+  private onDragMove(value: number) {
+    if (this.isDragging) {
+      this.setValue(value);
+      this.cdr.markForCheck();
+    }
+  }
 
-  private onDragEnd() {}
+  private onDragEnd() {
+    this.toggleDragMoving(false);
+    this.cdr.markForCheck();
+  }
+
+  private setValue(value: SliderValue) {
+    if (!this.valuesEqual(this.value, value)) {
+      this.value = value;
+      this.updateTrackAndHandles();
+    }
+  }
+
+  private valuesEqual(valA: SliderValue, valB: SliderValue): boolean {
+    if (typeof valA !== typeof valB) {
+      return false;
+    }
+    return valA === valB;
+  }
+
+  private updateTrackAndHandles() {
+    this.offset = this.getValueToOffset(this.value);
+    this.cdr.markForCheck();
+  }
+
+  private getValueToOffset(value: SliderValue): SliderValue {
+    return getPercent(this.wyMin, this.wyMax, value);
+  }
+
+  private toggleDragMoving(movable: boolean) {
+    this.isDragging = movable;
+    if (movable) {
+      this.subscribeDrag(['move', 'end']);
+    } else {
+      this.unSubscribeDrag(['move', 'end']);
+    }
+  }
 
   private findClosestValue(positon: number): number {
     // 获取滑块总长
@@ -120,6 +184,10 @@ export class WySliderComponent implements OnInit {
   private getSliderStartPosition(): number {
     const offset = getElementOffset(this.sliderDom);
     return this.wyVertical ? offset.top : offset.left;
+  }
+
+  ngOnDestroy(): void {
+    this.unSubscribeDrag();
   }
 
 }

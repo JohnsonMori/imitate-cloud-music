@@ -17,14 +17,16 @@ export class WySliderTrackComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['wyLength']) {
-      this.style.height = this.wyLength + '%';
-      this.style.left = null;
-      this.style.width = null;
-    } else {
-      this.style.width = this.wyLength + '%';
-      this.style.bottom = null;
-      this.style.height = null;
-    }
+      if (this.wyVertical) {
+        this.style.height = this.wyLength + '%';
+        this.style.left = null;
+        this.style.width = null;
+      } else {
+        this.style.width = this.wyLength + '%';
+        this.style.bottom = null;
+        this.style.height = null;
+      }
+    } 
   }
 
 }
