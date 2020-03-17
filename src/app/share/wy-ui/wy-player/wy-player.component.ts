@@ -5,6 +5,7 @@ import { getSongList, getPlayList, getCurrentIndex, getPlayer, getPlayMode, getC
 import { Song } from 'src/app/services/data-types/common.typs';
 import { PlayState } from 'src/app/store/reducers/player.reducer';
 import { PlayMode } from './player-type';
+import { SetCurrentIndex } from 'src/app/store/actions/player.actions';
 
 @Component({
   selector: 'app-wy-player',
@@ -22,6 +23,12 @@ export class WyPlayerComponent implements OnInit {
 
   duration: number;
   currentTime: number;
+
+  // 播放状态
+  playing = false;
+
+  // 是否可以播放
+  songReady = false;
 
   @ViewChild('audio', { static: true }) private audio: ElementRef;
   private audioEl: HTMLAudioElement;
@@ -81,7 +88,59 @@ export class WyPlayerComponent implements OnInit {
     }
   }
 
+  // 播放/暂停
+  onToggle() {
+    if (!this.currentSong) {
+      if (this.playList.length) {
+        this.updateIndex(0);
+      }
+    } else {
+      if (this.songReady) {
+        this.playing = !this.playing;
+        if (this.playing) {
+          this.audioEl.play();
+        } else {
+          this.audioEl.pause();
+        }
+      }
+    }
+  }
+
+  // 上一曲
+  onPrev(index: number) {
+    if (!this.songReady) return;
+    if (this.playList.length === 1) {
+      this.loop();
+    } else {
+      const newIndex = index <= 0 ? this.playList.length -1 : index;
+      this.updateIndex(newIndex);
+    }
+  }
+
+  // 下一曲
+  onNext(index: number) {
+    if (!this.songReady) return;
+    if (this.playList.length === 1) {
+      this.loop();
+    } else {
+      const newIndex = index >= this.playList.length ? 0 : index;
+      this.updateIndex(newIndex);
+    }
+  }
+
+  // 单曲循环
+  private loop() {
+    this.audioEl.currentTime = 0;
+    this.play();
+  }
+
+  private updateIndex(index: number) {
+    this.store$.dispatch(SetCurrentIndex({ currentIndex: index }));
+    this.songReady = false;
+  }
+
   onCanplay() {
+    this.songReady = true;
     this.play();
   }
 
@@ -91,6 +150,7 @@ export class WyPlayerComponent implements OnInit {
 
   private play() {
     this.audioEl.play();
+    this.playing = true;
   }
 
   getPicUrl(): string {
