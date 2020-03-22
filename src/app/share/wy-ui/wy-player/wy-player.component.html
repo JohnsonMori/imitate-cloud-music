@@ -44,9 +44,9 @@
                 <i class="share" title="分享"></i>
             </div>
             <div class="ctrl">
-                <i class="volume" title="音量" (click)="toggleVolPanel($event)"></i>
+                <i class="volume" title="音量" (click)="toggleVolPanel()"></i>
                 <i [ngClass]="currentMode.type" [title]="currentMode.label" (click)="changeMode()"></i>
-                <p class="open">
+                <p class="open" (click)="toggleListPanel()">
                     <span></span>
                 </p>
 
@@ -59,6 +59,15 @@
                     </app-wy-slider>
                 </div>
             </div>
+            <app-wy-player-panel
+                [songList]="songList"
+                [currentSong]="currentSong"
+                [currentIndex]="currentIndex"
+                [show]="showPanel"
+                (onChangeSong)="onChangeSong($event)"
+                (onClose)="showPanel = false"
+            >
+            </app-wy-player-panel>
         </div>
     </div>
 

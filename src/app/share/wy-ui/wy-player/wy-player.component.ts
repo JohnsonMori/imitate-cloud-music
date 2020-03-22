@@ -50,6 +50,9 @@ export class WyPlayerComponent implements OnInit {
   // 是否显示音量面板
   showVolumePanel = false;
 
+  // 是否显示列表面板
+  showPanel = false;
+
   // 是否点击的是音量面板本身
   selfClick = false;
 
@@ -114,7 +117,7 @@ export class WyPlayerComponent implements OnInit {
       if (mode.type === 'random') {
         list = shuffle(this.songList);
         this.updateCurrentIndex(list, this.currentSong);
-         this.store$.dispatch(SetPlayList({ playList: list }));
+        this.store$.dispatch(SetPlayList({ playList: list }));
       }
     }
   }
@@ -149,14 +152,20 @@ export class WyPlayerComponent implements OnInit {
   }
 
   // 控制音量面板
-  toggleVolPanel(evt: MouseEvent) {
-    // evt.stopPropagation();
-    this.togglePanel();
+  toggleVolPanel() {
+    this.togglePanel('showVolumePanel');
   }
 
-  togglePanel() {
-    this.showVolumePanel = !this.showVolumePanel;
-    if (this.showVolumePanel) {
+  // 控制列表面板
+  toggleListPanel() {
+    if (this.songList.length) {
+      this.togglePanel('showPanel');
+    }
+  }
+
+  togglePanel(type: string) {
+    this[type] = !this[type];
+    if (this.showVolumePanel || this.showPanel) {
       this.bindDocumentClickListener();
     } else {
       this.unbindDocumentClickListener();
@@ -168,6 +177,7 @@ export class WyPlayerComponent implements OnInit {
       this.winClick = fromEvent(this.doc, 'click').subscribe(() => {
         if (!this.selfClick) { // 说明点击了播放器以外的部分
           this.showVolumePanel = false;
+          this.showPanel = false;
           this.unbindDocumentClickListener();
         }
         this.selfClick = false;
@@ -264,6 +274,11 @@ export class WyPlayerComponent implements OnInit {
 
   getPicUrl(): string {
     return this.currentSong? this.currentSong.al.picUrl : '//s4.music.126.net/style/web2/img/default/default_album.jpg';
+  }
+
+  // 改变歌曲
+  onChangeSong(song: Song) {
+    this.updateCurrentIndex(this.playList, song);
   }
 
 }
